@@ -6,6 +6,102 @@
 </head>
 <body>
 <h1>RPG admin panel</h1>
+<h2>Accounts list:</h2>
+<select class="js-range-select"></select>
+<table class="js-table"></table>
+pages: <div class="js-pagination"></div>
+<script>
+    // const
+    const COLUMNS = ['id', 'name', 'title', 'race', 'profession', 'banned', 'birthday'];
+    const COUNT_RANGE = {min: 3, max: 20}
+    // elems
+    const $table = $('.js-table');
+    const $rangeSelect = $('.js-range-select');
+    const $pagination = $('.js-pagination');
 
+    const state = {
+        tableData: null,
+        totalCount: 0,
+        pageNumber: 0,
+        pageSize: COUNT_RANGE.min,
+    }
+
+    $rangeSelect.on('change', onPageSizeChange);
+    $pagination.on('click', onPaginationClick);
+
+    render();
+    // methods
+    function render() {
+        getTotalCount()
+            .done(() => {
+                renderPageSizeSelect();
+                renderPagination();
+            });
+
+        getTableData()
+            .done(() => {
+                renderTable();
+            });
+    }
+    function update() {
+        renderPagination();
+        getTableData()
+            .done(() => {
+                renderTable();
+            });
+    }
+    function renderPagination() {
+        $pagination.html('');
+        const count = Math.ceil(state.totalCount / state.pageSize);
+
+        for (let i = 0; i < count; i++) {
+            $pagination.append(`<button class="page-btn ${state.pageNumber === i ? '_active' : ''}">${i+1}</button>`)
+        }
+    }
+    function renderPageSizeSelect() {
+        $rangeSelect.html('');
+
+        for (let i = COUNT_RANGE.min; i <= COUNT_RANGE.max; i++) {
+            $rangeSelect.append(`<option>${i}</option>`)
+        }
+    }
+    function getTotalCount() {
+        return $.ajax({
+            url: "/rest/players/count",
+            method: 'get',
+            success: (data) => state.totalCount = data,
+        })
+    }
+    function getTableData() {
+        return $.ajax({
+            url: '/rest/players',
+            method: 'get',
+            data: {pageNumber: state.pageNumber, pageSize: state.pageSize},
+            success: data => state.tableData = data,
+        })
+    }
+    function renderTable() {
+        $table.html(`
+            <tr>${COLUMNS.map(column => `<th>${column}</th>`).join()}</tr>
+        `);
+
+        state.tableData.forEach(row => $table.append(`
+            <tr>${COLUMNS.map(column => `<td>${row[column]}</td>`).join()}</tr>
+       `))
+    }
+
+    // listeners
+    function onPageSizeChange(e) {
+        state.pageSize = e.target.value;
+        state.pageNumber = 0;
+
+        update();
+    }
+    function onPaginationClick(e) {
+        state.pageNumber = +e.target.textContent - 1;
+
+        update();
+    }
+</script>
 </body>
 </html>
