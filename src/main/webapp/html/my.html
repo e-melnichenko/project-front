@@ -12,8 +12,11 @@
 pages: <div class="js-pagination"></div>
 <script>
     // const
-    const COLUMNS = ['id', 'name', 'title', 'race', 'profession', 'banned', 'birthday'];
-    const COUNT_RANGE = {min: 3, max: 20}
+    const COLUMNS = ['id', 'name', 'title', 'race', 'profession', 'banned', 'birthday', 'edit', 'delete'];
+    const COUNT_RANGE = {min: 3, max: 20};
+    const RACE = ['HUMAN', 'DWARF', 'ELF', 'GIANT', 'ORC', 'TROLL', 'HOBBIT'];
+    const PROFESSION = ['WARRIOR', 'ROGUE', 'SORCERER', 'CLERIC', 'PALADIN', 'NAZGUL', 'WARLOCK', 'DRUID'];
+
     // elems
     const $table = $('.js-table');
     const $rangeSelect = $('.js-range-select');
@@ -28,6 +31,7 @@ pages: <div class="js-pagination"></div>
 
     $rangeSelect.on('change', onPageSizeChange);
     $pagination.on('click', onPaginationClick);
+    $table.on('click', onTableClick);
 
     render();
     // methods
@@ -86,8 +90,92 @@ pages: <div class="js-pagination"></div>
         `);
 
         state.tableData.forEach(row => $table.append(`
-            <tr>${COLUMNS.map(column => `<td>${row[column]}</td>`).join()}</tr>
+            <tr data-account-id="${row.id}">
+                ${COLUMNS.map(column => `<td data-column="${column}">${getCellContent({row, column})}</td>`).join()}
+            </tr>
        `))
+
+        function getCellContent({row, column}) {
+            if(column === 'edit') {
+                return `<button class="js-edit"><img src="../img/edit.png"/></button>`
+            } else if(column === 'delete') {
+                return `<button class="js-delete"><img src="../img/delete.png"/></button>`
+            } else {
+                return row[column]
+            }
+        }
+    }
+    function deleteAccount(deleteBtn) {
+        const id = $(deleteBtn.closest('tr')).data('account-id');
+
+        $.ajax({
+            url: `/rest/players/${id}`,
+            method: 'delete'
+        }).done(update);
+    }
+    function editAccount(editBtn) {
+        const rowEl = editBtn.closest('tr');
+
+        //replace to save btn
+        $(editBtn)
+            .parent()
+            .html(`<button class="js-save"><img src="../img/save.png"/></button>`);
+
+        // hide remove btn
+        $(rowEl).find('.js-delete').css('display', 'none');
+
+        $(rowEl)
+            .children(':not([data-column="edit"]):not([data-column="delete"])')
+            .each(function() {
+                const $cell = $(this);
+                const cellValue = $cell.text();
+                const column = $cell.data('column');
+
+                if(column === 'id') return;
+
+                if(column === 'race') {
+                    $cell.html(`
+                        <select name="${column}"">
+                            ${RACE.map(item => `<option value="${item}" ${item === cellValue ? 'selected' : ''}>${item}</option>`).join()}
+                        </select>
+                    `)
+                } else if(column === 'profession') {
+                    $cell.html(`
+                        <select name="${column}"">
+                            ${PROFESSION.map(item => `<option value="${item}" ${item === cellValue ? 'selected' : ''}>${item}</option>`).join()}
+                        </select>
+                    `)
+                } else if(column === 'banned') {
+                    $cell.html(`
+                        <select name="${column}" value="${cellValue}">
+                           <option value="true" ${'true' === cellValue ? 'selected' : ''}>true</option>
+                           <option value="false"${'false' === cellValue ? 'selected' : ''}>false</option>
+                        </select>
+                    `)
+                } else {
+                    $cell.html(`<input type="text" value="${cellValue}" name="${column}"/>`);
+                }
+            })
+    }
+    function saveAccount(saveBtn) {
+        const $row = $(saveBtn.closest('tr'));
+        const id = $row.data('account-id');
+        const data = {};
+        data.name = $row.find('[name="name"]').val();
+        data.title = $row.find('[name="title"]').val();
+        data.race = $row.find('[name="race"]').val();
+        data.profession = $row.find('[name="profession"]').val();
+        data.banned = $row.find('[name="banned"]').val();
+
+        console.log(data)
+        $.ajax({
+            url: `/rest/players/${id}`,
+            method: 'POST',
+            // data,
+            data: JSON.stringify(data),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+        }).done(update)
     }
 
     // listeners
@@ -101,6 +189,26 @@ pages: <div class="js-pagination"></div>
         state.pageNumber = +e.target.textContent - 1;
 
         update();
+    }
+    function onTableClick(e) {
+        const deleteTarget = e.target.closest('.js-delete');
+        if(deleteTarget) {
+            deleteAccount(e.target);
+            return
+        }
+
+        const editTarget = e.target.closest('.js-edit');
+        if(editTarget) {
+            editAccount(editTarget);
+            return
+        }
+
+        const saveTarget = e.target.closest('.js-save');
+        if(saveTarget) {
+            saveAccount(saveTarget);
+            return
+        }
+
     }
 </script>
 </body>
