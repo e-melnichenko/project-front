@@ -10,6 +10,58 @@
 <select class="js-range-select"></select>
 <table class="js-table"></table>
 pages: <div class="js-pagination"></div>
+<hr/>
+<form class="js-form">
+    <div>
+        Name:
+        <input type="text" name="name" maxlength="12" />
+    </div>
+    <div>
+        Title:
+        <input type="text" name="title" maxlength="30" />
+    </div>
+    <div>
+        Race:
+        <select name="race">
+            <option value="HUMAN">HUMAN</option>
+            <option value="DWARF">DWARF</option>
+            <option value="ELF">ELF</option>
+            <option value="GIANT">GIANT</option>
+            <option value="ORC">ORC</option>
+            <option value="TROLL">TROLL</option>
+            <option value="HOBBIT">HOBBIT</option>
+        </select>
+    </div>
+    <div>
+        Profession:
+        <select name="profession">
+            <option value="WARRIOR">WARRIOR</option>
+            <option value="ROGUE">ROGUE</option>
+            <option value="SORCERER">SORCERER</option>
+            <option value="CLERIC">CLERIC</option>
+            <option value="PALADIN">PALADIN</option>
+            <option value="NAZGUL">NAZGUL</option>
+            <option value="WARLOCK">WARLOCK</option>
+            <option value="DRUID">DRUID</option>
+        </select>
+    </div>
+    <div>
+        Level:
+        <input type="number" min="0" max="100" name="level"/>
+    </div>
+    <div>
+        Birthday:
+        <input name="birthday" type="date" />
+    </div>
+    <div>
+        Banned:
+        <select name="banned">
+            <option value="false">false</option>
+            <option value="true">true</option>
+        </select>
+    </div>
+    <button>Save</button>
+</form>
 <script>
     // const
     const COLUMNS = ['id', 'name', 'title', 'race', 'profession', 'banned', 'birthday', 'edit', 'delete'];
@@ -21,6 +73,7 @@ pages: <div class="js-pagination"></div>
     const $table = $('.js-table');
     const $rangeSelect = $('.js-range-select');
     const $pagination = $('.js-pagination');
+    const $form = $('.js-form');
 
     const state = {
         tableData: null,
@@ -32,6 +85,7 @@ pages: <div class="js-pagination"></div>
     $rangeSelect.on('change', onPageSizeChange);
     $pagination.on('click', onPaginationClick);
     $table.on('click', onTableClick);
+    $form.on('submit', onSubmit);
 
     render();
     // methods
@@ -171,7 +225,6 @@ pages: <div class="js-pagination"></div>
         $.ajax({
             url: `/rest/players/${id}`,
             method: 'POST',
-            // data,
             data: JSON.stringify(data),
             dataType: "json",
             contentType: "application/json; charset=utf-8",
@@ -209,6 +262,30 @@ pages: <div class="js-pagination"></div>
             return
         }
 
+    }
+    function onSubmit(e) {
+        e.preventDefault()
+        const form = e.target;
+        const data = {
+            name: form.name.value,
+            title: form.title.value,
+            race: form.race.value,
+            profession: form.profession.value,
+            level: form.level.value,
+            birthday: new Date(form.birthday.value).getTime(),
+            banned: form.banned.value,
+        }
+        $.ajax({
+            url: '/rest/players',
+            method: 'post',
+            data: JSON.stringify(data),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            success() {
+                form.reset();
+                update();
+            }
+        })
     }
 </script>
 </body>
