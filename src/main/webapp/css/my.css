@@ -1,0 +1,7 @@
+table, th, td {
+    border: 1px solid;
+}
+
+.page-btn._active {
+    color: red;
+}

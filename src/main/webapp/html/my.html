@@ -6,6 +6,287 @@
 </head>
 <body>
 <h1>RPG admin panel</h1>
+<h2>Accounts list:</h2>
+<select class="js-range-select"></select>
+<table class="js-table"></table>
+pages: <div class="js-pagination"></div>
+<hr/>
+<form class="js-form">
+    <div>
+        Name:
+        <input type="text" name="name" maxlength="12" />
+    </div>
+    <div>
+        Title:
+        <input type="text" name="title" maxlength="30" />
+    </div>
+    <div>
+        Race:
+        <select name="race">
+            <option value="HUMAN">HUMAN</option>
+            <option value="DWARF">DWARF</option>
+            <option value="ELF">ELF</option>
+            <option value="GIANT">GIANT</option>
+            <option value="ORC">ORC</option>
+            <option value="TROLL">TROLL</option>
+            <option value="HOBBIT">HOBBIT</option>
+        </select>
+    </div>
+    <div>
+        Profession:
+        <select name="profession">
+            <option value="WARRIOR">WARRIOR</option>
+            <option value="ROGUE">ROGUE</option>
+            <option value="SORCERER">SORCERER</option>
+            <option value="CLERIC">CLERIC</option>
+            <option value="PALADIN">PALADIN</option>
+            <option value="NAZGUL">NAZGUL</option>
+            <option value="WARLOCK">WARLOCK</option>
+            <option value="DRUID">DRUID</option>
+        </select>
+    </div>
+    <div>
+        Level:
+        <input type="number" min="0" max="100" name="level"/>
+    </div>
+    <div>
+        Birthday:
+        <input name="birthday" type="date" />
+    </div>
+    <div>
+        Banned:
+        <select name="banned">
+            <option value="false">false</option>
+            <option value="true">true</option>
+        </select>
+    </div>
+    <button>Save</button>
+</form>
+<script>
+    // const
+    const COLUMNS = ['id', 'name', 'title', 'race', 'profession', 'banned', 'birthday', 'edit', 'delete'];
+    const COUNT_RANGE = {min: 3, max: 20};
+    const RACE = ['HUMAN', 'DWARF', 'ELF', 'GIANT', 'ORC', 'TROLL', 'HOBBIT'];
+    const PROFESSION = ['WARRIOR', 'ROGUE', 'SORCERER', 'CLERIC', 'PALADIN', 'NAZGUL', 'WARLOCK', 'DRUID'];
 
+    // elems
+    const $table = $('.js-table');
+    const $rangeSelect = $('.js-range-select');
+    const $pagination = $('.js-pagination');
+    const $form = $('.js-form');
+
+    const state = {
+        tableData: null,
+        totalCount: 0,
+        pageNumber: 0,
+        pageSize: COUNT_RANGE.min,
+    }
+
+    $rangeSelect.on('change', onPageSizeChange);
+    $pagination.on('click', onPaginationClick);
+    $table.on('click', onTableClick);
+    $form.on('submit', onSubmit);
+
+    render();
+    // methods
+    function render() {
+        getTotalCount()
+            .done(() => {
+                renderPageSizeSelect();
+                renderPagination();
+            });
+
+        getTableData()
+            .done(() => {
+                renderTable();
+            });
+    }
+    function update() {
+        renderPagination();
+        getTableData()
+            .done(() => {
+                renderTable();
+            });
+    }
+    function renderPagination() {
+        $pagination.html('');
+        const count = Math.ceil(state.totalCount / state.pageSize);
+
+        for (let i = 0; i < count; i++) {
+            $pagination.append(`<button class="page-btn ${state.pageNumber === i ? '_active' : ''}">${i+1}</button>`)
+        }
+    }
+    function renderPageSizeSelect() {
+        $rangeSelect.html('');
+
+        for (let i = COUNT_RANGE.min; i <= COUNT_RANGE.max; i++) {
+            $rangeSelect.append(`<option>${i}</option>`)
+        }
+    }
+    function getTotalCount() {
+        return $.ajax({
+            url: "/rest/players/count",
+            method: 'get',
+            success: (data) => state.totalCount = data,
+        })
+    }
+    function getTableData() {
+        return $.ajax({
+            url: '/rest/players',
+            method: 'get',
+            data: {pageNumber: state.pageNumber, pageSize: state.pageSize},
+            success: data => state.tableData = data,
+        })
+    }
+    function renderTable() {
+        $table.html(`
+            <tr>${COLUMNS.map(column => `<th>${column}</th>`).join()}</tr>
+        `);
+
+        state.tableData.forEach(row => $table.append(`
+            <tr data-account-id="${row.id}">
+                ${COLUMNS.map(column => `<td data-column="${column}">${getCellContent({row, column})}</td>`).join()}
+            </tr>
+       `))
+
+        function getCellContent({row, column}) {
+            if(column === 'edit') {
+                return `<button class="js-edit"><img src="../img/edit.png"/></button>`
+            } else if(column === 'delete') {
+                return `<button class="js-delete"><img src="../img/delete.png"/></button>`
+            } else {
+                return row[column]
+            }
+        }
+    }
+    function deleteAccount(deleteBtn) {
+        const id = $(deleteBtn.closest('tr')).data('account-id');
+
+        $.ajax({
+            url: `/rest/players/${id}`,
+            method: 'delete'
+        }).done(update);
+    }
+    function editAccount(editBtn) {
+        const rowEl = editBtn.closest('tr');
+
+        //replace to save btn
+        $(editBtn)
+            .parent()
+            .html(`<button class="js-save"><img src="../img/save.png"/></button>`);
+
+        // hide remove btn
+        $(rowEl).find('.js-delete').css('display', 'none');
+
+        $(rowEl)
+            .children(':not([data-column="edit"]):not([data-column="delete"])')
+            .each(function() {
+                const $cell = $(this);
+                const cellValue = $cell.text();
+                const column = $cell.data('column');
+
+                if(column === 'id') return;
+
+                if(column === 'race') {
+                    $cell.html(`
+                        <select name="${column}"">
+                            ${RACE.map(item => `<option value="${item}" ${item === cellValue ? 'selected' : ''}>${item}</option>`).join()}
+                        </select>
+                    `)
+                } else if(column === 'profession') {
+                    $cell.html(`
+                        <select name="${column}"">
+                            ${PROFESSION.map(item => `<option value="${item}" ${item === cellValue ? 'selected' : ''}>${item}</option>`).join()}
+                        </select>
+                    `)
+                } else if(column === 'banned') {
+                    $cell.html(`
+                        <select name="${column}" value="${cellValue}">
+                           <option value="true" ${'true' === cellValue ? 'selected' : ''}>true</option>
+                           <option value="false"${'false' === cellValue ? 'selected' : ''}>false</option>
+                        </select>
+                    `)
+                } else {
+                    $cell.html(`<input type="text" value="${cellValue}" name="${column}"/>`);
+                }
+            })
+    }
+    function saveAccount(saveBtn) {
+        const $row = $(saveBtn.closest('tr'));
+        const id = $row.data('account-id');
+        const data = {};
+        data.name = $row.find('[name="name"]').val();
+        data.title = $row.find('[name="title"]').val();
+        data.race = $row.find('[name="race"]').val();
+        data.profession = $row.find('[name="profession"]').val();
+        data.banned = $row.find('[name="banned"]').val();
+
+        console.log(data)
+        $.ajax({
+            url: `/rest/players/${id}`,
+            method: 'POST',
+            data: JSON.stringify(data),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+        }).done(update)
+    }
+
+    // listeners
+    function onPageSizeChange(e) {
+        state.pageSize = e.target.value;
+        state.pageNumber = 0;
+
+        update();
+    }
+    function onPaginationClick(e) {
+        state.pageNumber = +e.target.textContent - 1;
+
+        update();
+    }
+    function onTableClick(e) {
+        const deleteTarget = e.target.closest('.js-delete');
+        if(deleteTarget) {
+            deleteAccount(e.target);
+            return
+        }
+
+        const editTarget = e.target.closest('.js-edit');
+        if(editTarget) {
+            editAccount(editTarget);
+            return
+        }
+
+        const saveTarget = e.target.closest('.js-save');
+        if(saveTarget) {
+            saveAccount(saveTarget);
+            return
+        }
+
+    }
+    function onSubmit(e) {
+        e.preventDefault()
+        const form = e.target;
+        const data = {
+            name: form.name.value,
+            title: form.title.value,
+            race: form.race.value,
+            profession: form.profession.value,
+            level: form.level.value,
+            birthday: new Date(form.birthday.value).getTime(),
+            banned: form.banned.value,
+        }
+        $.ajax({
+            url: '/rest/players',
+            method: 'post',
+            data: JSON.stringify(data),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            success() {
+                form.reset();
+                update();
+            }
+        })
+    }
+</script>
 </body>
 </html>
